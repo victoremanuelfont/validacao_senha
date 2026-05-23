@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    image: python:3.11-alpine
+    container_name: password_app
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    ports:
+      - "5000:5000"
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             python app.py"
+    networks:
+      - secure_net
+
+  tests:
+    image: python:3.11-alpine
+    container_name: password_tests
+    volumes:
+      - ./tests:/tests
+    working_dir: /tests
+    environment:
+      - APP_URL=http://app:5000
+    depends_on:
+      - app
+    # O comando aguarda o endpoint /generate responder 200 OK antes de iniciar os testes
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt &&
+             echo 'Aguardando a aplicação Flask iniciar...' &&
+             while ! wget -q --spider http://app:5000/generate; do sleep 1; done &&
+             echo 'Aplicação pronta! Executando testes...' &&
+             pytest -v"
+    networks:
+      - secure_net
+
+networks:
+  secure_net:
+    driver: bridge
